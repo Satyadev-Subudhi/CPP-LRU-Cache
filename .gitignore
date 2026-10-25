@@ -1,0 +1,21 @@
+# CMake build directories
+/build/
+/build-*/
+/cmake-build-*/
+
+# Compiled files
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+
+# Temporary diagnostic files
+*.log
+asan_smoke.cpp
+
+# Editor settings
+.vscode/
+.idea/
