@@ -40,3 +40,11 @@ target_include_directories(lru_tests PRIVATE
 )
 
 add_test(NAME LRUCacheTests COMMAND lru_tests)
+
+add_executable(lru_benchmark
+    benchmark/benchmark.cpp
+)
+
+target_include_directories(lru_benchmark PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
