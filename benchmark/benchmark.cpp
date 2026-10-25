@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
+#include <algorithm>
 
 struct Operation {
     bool is_get;
@@ -154,52 +155,90 @@ int main() {
         });
     }
 
-    LRUCache custom_cache(capacity);
-    StandardLRUCache standard_cache(capacity);
+    // LRUCache custom_cache(capacity);
+    
+    constexpr int rounds = 10;
 
-    // Run the same workload against both implementations.
-    const auto custom_result =
-        run_benchmark(custom_cache, operations, capacity);
+    std::vector<double> custom_times;
+    std::vector<double> standard_times;
 
-    const auto standard_result =
-        run_benchmark(standard_cache, operations, capacity);
-
-    std::cout << std::fixed << std::setprecision(2);
-
-    auto print_results = [](const char* name,
-                            const BenchmarkResult& result) {
-        std::cout << "\n" << name << '\n';
-        std::cout << "-------------------\n";
-        std::cout << "Elapsed time: "
-                  << result.elapsed_ms << " ms\n";
-        std::cout << "Throughput: "
-                  << result.operations_per_second
-                  << " operations/sec\n";
-        std::cout << "Get hit rate: "
-                  << result.hit_rate << "%\n";
-        std::cout << "Get hits: "
-                  << result.hits << " / "
-                  << result.get_count << '\n';
-        std::cout << "Checksum: "
-                  << result.checksum << '\n';
-    };
+    BenchmarkResult custom_result{};
+    BenchmarkResult standard_result{};
 
     std::cout << "LRU Cache Benchmark\n";
     std::cout << "Capacity: " << capacity << '\n';
     std::cout << "Operations: " << operations.size() << '\n';
-    std::cout << "Workload: 80% get, 20% put\n";
+    std::cout << "Rounds: " << rounds << '\n';
 
-    print_results("Custom LRU Cache", custom_result);
-    print_results("std::list Reference Cache", standard_result);
+    for (int round = 0; round < rounds; ++round) {
+        if (round % 2 == 0) {
+            // Even rounds: custom cache runs first.
+            LRUCache custom_cache(capacity);
+            custom_result =
+                run_benchmark(custom_cache, operations, capacity);
 
-    // Verify that both implementations produced matching results.
-    if (custom_result.hits != standard_result.hits ||
-        custom_result.checksum != standard_result.checksum) {
-        std::cerr << "\nERROR: Cache results do not match!\n";
-        return 1;
+            StandardLRUCache standard_cache(capacity);
+            standard_result =
+                run_benchmark(standard_cache, operations, capacity);
+        } else {
+            // Odd rounds: standard cache runs first.
+            StandardLRUCache standard_cache(capacity);
+            standard_result =
+                run_benchmark(standard_cache, operations, capacity);
+
+            LRUCache custom_cache(capacity);
+            custom_result =
+                run_benchmark(custom_cache, operations, capacity);
+        }
+
+        // Verify that both implementations behave consistently.
+        if (custom_result.hits != standard_result.hits ||
+            custom_result.checksum != standard_result.checksum) {
+            std::cerr << "ERROR: Cache results do not match!\n";
+            return 1;
+        }
+
+        custom_times.push_back(custom_result.elapsed_ms);
+        standard_times.push_back(standard_result.elapsed_ms);
+
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << "Round " << round + 1
+                  << " | Custom: " << custom_result.elapsed_ms
+                  << " ms | std::list: "
+                  << standard_result.elapsed_ms << " ms\n";
     }
+
+    // Sort the measurements and calculate their median.
+    auto median_ms = [](std::vector<double> times) {
+        std::sort(times.begin(), times.end());
+
+        const std::size_t middle = times.size() / 2;
+
+        if (times.size() % 2 != 0) {
+            return times[middle];
+        }
+
+        return (times[middle - 1] + times[middle]) / 2.0;
+    };
+
+    const double custom_median = median_ms(custom_times);
+    const double standard_median = median_ms(standard_times);
+
+    const double improvement =
+        100.0 * (standard_median - custom_median)
+        / standard_median;
+
+    std::cout << "\nSummary\n";
+    std::cout << "-------------------\n";
+    std::cout << "Custom median: "
+              << custom_median << " ms\n";
+    std::cout << "std::list median: "
+              << standard_median << " ms\n";
+    std::cout << "Custom cache elapsed-time reduction: "
+              << improvement << "%\n";
 
     std::cout << "\nBoth implementations produced matching results.\n";
 
     return 0;
+
 }
