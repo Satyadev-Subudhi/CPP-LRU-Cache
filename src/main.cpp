@@ -7,9 +7,14 @@ int main() {
     std::cin.tie(nullptr);
 
     int n, capacity;
-    std::cin >> n >> capacity;
+    // std::cin >> n >> capacity;
+    if (!(std::cin >> n >> capacity) || n < 0 || capacity <= 0) {
+        std::cerr << "Expected a non-negative command count "
+                    "and a positive capacity.\n";
+        return 1;
+    }
 
-    LRUCache cache(capacity);
+    LRUCache cache(static_cast<std::size_t>(capacity));
 
     for (int i = 0; i < n; ++i) {
         std::string command;

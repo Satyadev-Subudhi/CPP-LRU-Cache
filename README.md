@@ -1,57 +1,168 @@
+# LRU Cache in C++17
 
-# C++ LRU Cache
-
-A Least Recently Used (LRU) Cache implemented from scratch in C++17 using a custom doubly linked list and an unordered map.
-
-## Overview
-
-The cache stores key-value pairs with a fixed capacity. When the cache is full, it automatically evicts the least recently used entry.
-
-## Design
-
-- **Hash map:** Maps keys to node pointers for average O(1) lookups.
-- **Doubly linked list:** Maintains entries in usage order, with the most recently used entry at the front and the least recently used entry at the back.
-- **Memory management:** Uses explicit node ownership and RAII to reduce the risk of memory errors.
+A small LRU (Least Recently Used) cache implementation in C++17. This
+project explores how a hash map and a doubly linked list work together
+to support efficient cache operations, with unit tests and a repeatable
+benchmark.
 
 ## Features
 
-- `get(key)`: Retrieves a value and marks the entry as recently used.
-- `put(key, value)`: Inserts or updates an entry.
-- `erase(key)`: Removes an entry by key.
-- Automatic eviction when capacity is exceeded.
-- Input validation for zero capacity.
-- Unit tests for core operations and edge cases.
+-   Custom doubly linked list with head and tail sentinel nodes.
+-   `std::unordered_map` for mapping keys to list nodes.
+-   `get(key)` retrieves a value and marks a successful access as most
+    recently used.
+-   `put(key, value)` inserts a key or updates an existing value.
+-   Automatic eviction of the least recently used entry when capacity is
+    exceeded.
+-   `erase(key)` removes an entry and reports whether the key existed.
+-   Unit tests and an optional AddressSanitizer build.
+-   Benchmark against a reference implementation using `std::list`.
+
+## How it works
+
+The cache uses two data structures:
+
+-   **Hash map:** maps each key to its corresponding list node, allowing
+    average-case constant-time lookup.
+-   **Doubly linked list:** tracks access order. The front contains the
+    most recently used (MRU) entry, and the back contains the least
+    recently used (LRU) entry.
+
+Operations:
+
+1.  On a successful `get`, the entry moves to the front.
+2.  On `put` for an existing key, the value is updated and the entry
+    moves to the front.
+3.  On `put` for a new key, a node is added to the front. If capacity is
+    exceeded, the node at the back is evicted and its key is removed
+    from the hash map.
+4.  On `erase`, the node is detached from the list and its key is
+    removed from the hash map.
+
+The hash map stores pointers to nodes in the list. The cache and list
+manage the node lifetime. Copying and moving an `LRUCache` are disabled
+to avoid accidental pointer-ownership problems.
 
 ## Complexity
 
-| Operation | Average Time Complexity |
-|---|---|
-| `get` | O(1) |
-| `put` | O(1) |
-| `erase` | O(1) |
+  Operation             Average time complexity
+  ------------------- -------------------------
+  `get(key)`                             `O(1)`
+  `put(key, value)`                      `O(1)`
+  `erase(key)`                           `O(1)`
+  Space                           `O(capacity)`
 
-These average-case bounds rely on the hash map's operations taking average O(1) time.
+The time complexities are average-case because hash map operations can
+take longer in the worst case.
 
-## Build and Run
+## Project structure
 
-Requires CMake and a C++17-compatible compiler.
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build
+``` text
+.
+├── .devcontainer/
+├── include/
+│   ├── DoublyLinkedList.hpp
+│   └── LRUCache.hpp
+├── src/
+│   └── main.cpp
+├── tests/
+│   └── test_lru.cpp
+├── benchmark/
+│   └── benchmark.cpp
+├── CMakeLists.txt
+└── README.md
 ```
 
-Run the application:
+## Requirements
 
-- Linux: `./build/lru_cache`
-- Windows PowerShell: `.\build\lru_cache.exe`
+-   A C++17-compatible compiler
+-   CMake
+-   Bash or a similar terminal environment
 
-## Run Tests
+The commands below are suitable for a Linux environment such as GitHub
+Codespaces.
 
-```bash
-ctest --test-dir build --output-on-failure
+## Build and run
+
+Configure and build a Release version:
+
+``` bash
+cmake -S . -B build-release \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_ASAN=OFF
+
+cmake --build build-release --parallel
 ```
 
-## Project Goals
+Run the example program:
 
-This project focuses on more than implementing an algorithm. It explores pointer ownership, memory management, exception safety, testing, and performance measurement in C++.
+``` bash
+./build-release/lru_cache
+```
+
+## Run tests
+
+``` bash
+ctest --test-dir build-release --output-on-failure
+```
+
+## Run the benchmark
+
+``` bash
+./build-release/lru_benchmark
+```
+
+The benchmark compares the custom cache with a reference implementation
+based on `std::list` and `std::unordered_map`.
+
+Benchmark setup:
+
+-   Cache capacity: `10,000`
+-   Operations per round: `1,000,000`
+-   Workload: 80% `get`, 20% `put`
+-   Keys are generated from a fixed random seed so the workload is
+    reproducible.
+-   Both implementations receive the same pre-generated operations and
+    initial cache contents.
+-   The execution order alternates across 10 rounds.
+-   The benchmark reports median elapsed times and checks that the
+    implementations produce matching hit counts and checksums.
+
+### Example measurement
+
+Across three separate benchmark executions in GitHub Codespaces, the
+median of the reported 10-round medians was:
+
+  Implementation            Median elapsed time
+  ----------------------- ---------------------
+  Custom cache                         34.49 ms
+  `std::list` reference                38.62 ms
+
+This corresponds to approximately 10.69% lower elapsed time for the
+custom implementation in those runs. Treat this as an environment- and
+workload-specific observation, not a claim that a custom linked list is
+always faster than `std::list`. Benchmark results can vary with CPU
+load, compiler, and environment.
+
+## Optional: AddressSanitizer
+
+To build and run the tests with AddressSanitizer enabled:
+
+``` bash
+cmake -S . -B build-asan \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DENABLE_ASAN=ON
+
+cmake --build build-asan --parallel
+
+ctest --test-dir build-asan --output-on-failure
+```
+
+AddressSanitizer can help detect common memory errors during testing. It
+does not prove that a program is free of all memory or logic bugs.
+
+## Scope
+
+This project focuses on the core LRU cache data structures, correctness,
+memory ownership, testing, and benchmarking. It is a single-threaded
+implementation and does not provide thread safety.
