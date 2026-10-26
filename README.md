@@ -45,15 +45,13 @@ to avoid accidental pointer-ownership problems.
 
 ## Complexity
 
-  Operation             Average time complexity
-  ------------------- -------------------------
-  `get(key)`                             `O(1)`
-  `put(key, value)`                      `O(1)`
-  `erase(key)`                           `O(1)`
-  Space                           `O(capacity)`
+| Operation | Average time complexity |
+|---|---|
+| `get(key)` | `O(1)` |
+| `put(key, value)` | `O(1)` |
+| `erase(key)` | `O(1)` |
 
-The time complexities are average-case because hash map operations can
-take longer in the worst case.
+**Space complexity:** `O(capacity)`
 
 ## Project structure
 
@@ -94,11 +92,27 @@ cmake -S . -B build-release \
 cmake --build build-release --parallel
 ```
 
-Run the example program:
+## Run the example program
 
-``` bash
-./build-release/lru_cache
+The program reads the command count and cache capacity first, followed by one command per line. Supported commands include `put <key> <value>` and `get <key>`.
+
+Run this example from the repository root:
+
+```bash
+printf '6 2\nput 1 100\nput 2 200\nget 1\nput 3 300\nget 2\nget 3\n' | ./build-release/lru_cache
 ```
+
+Expected output:
+
+```text
+100
+null
+300
+```
+
+In this example, the cache capacity is 2. Calling `get 1` makes key 1 the most recently used entry. When key 3 is inserted, key 2 is evicted because it is the least recently used entry.
+
+Therefore, `get 2` returns `null`, while `get 3` returns `300`.
 
 ## Run tests
 
